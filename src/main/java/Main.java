@@ -14,11 +14,26 @@ public class Main {
     public static void main(String[] args) throws IOException {
 
         readFromConsole();
-        String result = getReportData();
 
-        System.out.println("Writing into file...");
-        writeIntoFile(result);
-        System.out.println("Done.");
+        try {
+
+            String result = getReportData();
+
+            System.out.println("Writing into file...");
+            writeIntoFile(result);
+            System.out.println("Done.");
+
+        } catch (ParseException e) {
+            System.out.println("CAN'T PARSE FILE DATA TO JSON!");
+        }
+
+        catch (IOException e){
+            System.out.println("CAN'T FIND THE PATH SPECIFIED!");
+        }
+
+        catch (ClassCastException e){
+            System.out.println(e.getMessage());
+        }
     }
 
     private static void readFromConsole() throws IOException {
@@ -36,50 +51,40 @@ public class Main {
         reportPath = br.readLine();
     }
 
-    private static String getReportData() {
+    private static String getReportData() throws IOException, ParseException, ClassCastException {
 
         JSONParser parser = new JSONParser();
 
         StringBuilder sb = new StringBuilder("Name, Score")
                 .append(System.lineSeparator());
 
-        try {
+        JSONArray data = (JSONArray) parser.parse(new FileReader(dataPath));
+        JSONObject object = (JSONObject) parser.parse(new FileReader(reportPath));
 
-            JSONArray data = (JSONArray) parser.parse(new FileReader(dataPath));
-            JSONObject object = (JSONObject) parser.parse(new FileReader(reportPath));
+        final long periodLimit = (long) object.get("periodLimit");
+        final boolean useExperienceMultiplier = (boolean) object.get("useExprienceMultiplier");
+        final long percent = (long) object.get("topPerformersThreshold");
 
-            final long periodLimit = (long) object.get("periodLimit");
-            final boolean useExperienceMultiplier = (boolean) object.get("useExprienceMultiplier");
-            final long percent = (long) object.get("topPerformersThreshold");
+        for (Object obj : data) {
 
-            for (Object obj : data) {
+            JSONObject dataObj = (JSONObject) obj;
+            long objLimit = (long) dataObj.get("salesPeriod");
 
-                JSONObject dataObj = (JSONObject) obj;
-                long objLimit = (long) dataObj.get("salesPeriod");
-
-                if (objLimit > periodLimit){
-                    continue;
-                }
-
-                double score = getScore(dataObj, useExperienceMultiplier);
-
-                if (score >= percent) {
-
-                    sb.append(dataObj.get("name"))
-                            .append(", ")
-                            .append(score)
-                            .append(System.lineSeparator());
-                }
+            if (objLimit > periodLimit){
+                continue;
             }
 
-        } catch (IOException e) {
-            System.out.println("Can't find the file specified");
-            e.printStackTrace();
-        }
+            double score = getScore(dataObj, useExperienceMultiplier);
 
-        catch (ParseException e){
-            System.out.println("Can't parse file data to JSON");
-            e.printStackTrace();
+
+            // NOT SURE ABOUT FOLLOWING CONDITION
+            if (score >= percent) {
+
+                sb.append(dataObj.get("name"))
+                        .append(", ")
+                        .append(score)
+                        .append(System.lineSeparator());
+            }
         }
 
         return sb.toString().trim();
@@ -98,17 +103,11 @@ public class Main {
         return totalSales / (salesPeriod * 1.0);
     }
 
-    private static void writeIntoFile(String result) {
+    private static void writeIntoFile(String result) throws IOException {
 
-        try {
+        FileWriter writer = new FileWriter(resultPath);
+        writer.write(result);
 
-            FileWriter writer = new FileWriter(resultPath);
-            writer.write(result);
-
-            writer.flush();
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        writer.flush();
     }
 }
